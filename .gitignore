@@ -1,0 +1,11 @@
+.venv/
+.venv-llm/
+__pycache__/
+runs/
+logs/
+submissions/
+*.pt
+*.bin
+*.safetensors
+# official data: keep out of a public repo
+data/

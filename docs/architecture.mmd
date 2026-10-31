@@ -1,0 +1,51 @@
+%%{init: {"theme":"base","flowchart":{"nodeSpacing":28,"rankSpacing":46,"padding":12},"themeVariables":{"fontFamily":"Arial","fontSize":"15px","lineColor":"#475569","clusterBkg":"#F8FAFC","clusterBorder":"#CBD5E1","edgeLabelBackground":"#FFFFFF"}}}%%
+flowchart TB
+  subgraph IN["① Input: one prompt, up to three written forms (same label)"]
+    direction LR
+    BA["Bangla script<br/><i>…_ba</i>"]
+    RO["Romanized<br/><i>…_ro</i>"]
+    CO["Code-mixed<br/>bn + en / hi / ur<br/><i>…_co</i>"]
+    BA ~~~ RO ~~~ CO
+  end
+
+  subgraph TE["② Teachers (C3): prompt-grouped training, same splits, same logit format"]
+    direction LR
+    T4["<b>Qwen3.5-9B LoRA</b><br/>instruction input, label-word head<br/>joint 3-view input + view dropout"]
+    T1["XLM-R large<br/>560M"]
+    T2["MuRIL large<br/>romanized specialist"]
+    T3["BanglaBERT large<br/>Bangla-script specialist"]
+    T5["TF-IDF + LR<br/>CPU"]
+    T4 ~~~ T1 ~~~ T2 ~~~ T3 ~~~ T5
+  end
+
+  subgraph DEC["③ Decision layer (C2 + C4): every choice made on OOF train+dev, adopted only if P(better) ≥ 0.9"]
+    direction LR
+    CAL["Per-model<br/>temperature calibration"]
+    ENS["Ensemble<br/>calibrated log-prob<br/>or NLL-weighted prob"]
+    POOL["View pooling<br/>over available views (1 to 3)<br/>missing-view fallback"]
+    RULE["Decision rule<br/>argmax, or Safe-only bias<br/>reported with Safe FPR"]
+    CAL --> ENS --> POOL --> RULE
+  end
+
+  subgraph OUT["④ Outputs"]
+    direction LR
+    SUB["<b>CodaBench submission</b><br/>one label for all views<br/>DS · macro-F1 · USR · Safe FPR"]
+    STU["<b>Student (C5)</b><br/>cross-view distillation:<br/>CE + α·T²·KL( P_teacher(prompt) ‖ P_student(view) ) + β·cons"]
+    BEN["<b>Deployable guard</b><br/>best of mDeBERTa / XLM-R base / MiniLM / …<br/>vocab-trimmed, INT8 ONNX, benchmarked"]
+    SUB ~~~ STU --> BEN
+  end
+
+  IN --> TE
+  TE -->|"dev / OOF / test logits"| DEC
+  DEC --> OUT
+
+  classDef input fill:#ECFDF5,stroke:#059669,color:#064E3B
+  classDef teach fill:#FFF7ED,stroke:#EA580C,color:#7C2D12
+  classDef llm fill:#FFEDD5,stroke:#C2410C,color:#7C2D12,stroke-width:2px
+  classDef dec fill:#FDF2F8,stroke:#DB2777,color:#831843
+  classDef out fill:#F0F9FF,stroke:#0284C7,color:#0C4A6E
+  class BA,RO,CO input
+  class T1,T2,T3,T5 teach
+  class T4 llm
+  class CAL,ENS,POOL,RULE dec
+  class SUB,STU,BEN out
